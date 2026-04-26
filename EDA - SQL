@@ -1,0 +1,123 @@
+CREATE DATABASE global_ads_performance_dataset;
+
+SELECT current_database();
+
+CREATE TABLE ads_data (
+    date DATE,
+    platform TEXT,
+    campaign_type TEXT,
+    industry TEXT,
+    country TEXT,
+    impressions BIGINT,
+    clicks BIGINT,
+    ctr FLOAT,
+    cpc FLOAT,
+    ad_spend FLOAT,
+    conversions BIGINT,
+    cpa FLOAT,
+    revenue FLOAT,
+    roas FLOAT
+);
+
+SELECT * FROM ads_data LIMIT 10;
+
+SELECT COUNT(*) FROM ads_data; ## Jumlah data 1.800 row
+
+SELECT COUNT(*) 
+FROM ads_data
+WHERE ad_spend IS NULL; ## tidak ada data null
+
+
+# 1. Overview
+SELECT 
+    COUNT(*) AS total_data,
+    MIN(date) AS start_date,
+    MAX(date) AS end_date
+FROM ads_data;
+
+
+# 2. PLATFORM PERFORMANCE 💰
+SELECT 
+    platform,
+    SUM(ad_spend) AS total_spend,
+    SUM(revenue) AS total_revenue,
+    ROUND(
+        (SUM(revenue) / NULLIF(SUM(ad_spend), 0))::numeric
+    , 2) AS roas
+FROM ads_data
+GROUP BY 1
+ORDER BY 4 DESC;
+
+## 3. CTR (EFEKTIVITAS IKLAN)
+SELECT 
+    platform,
+    ROUND(SUM(clicks)::numeric / SUM(impressions), 4) AS ctr
+FROM ads_data
+GROUP BY platform
+ORDER BY ctr DESC;
+
+## 4. CPC (EFISIENSI BIAYA)
+SELECT 
+    platform,
+    ROUND(
+        (SUM(ad_spend) / NULLIF(SUM(clicks), 0))::numeric
+    , 2) AS cpc
+FROM ads_data
+GROUP BY platform
+ORDER BY cpc ASC;
+
+
+## 5. INDUSTRY ANALYSIS
+SELECT 
+    industry,
+    SUM(revenue) AS revenue,
+    ROUND(
+        (SUM(revenue) / NULLIF(SUM(ad_spend), 0))::numeric
+    , 2) AS roas
+FROM ads_data
+GROUP BY industry
+ORDER BY roas DESC;
+
+## 6. COUNTRY ANALYSIS 🌍
+SELECT 
+    country,
+    SUM(revenue) AS revenue,
+    ROUND(
+        (SUM(revenue) / NULLIF(SUM(ad_spend), 0))::numeric
+    , 2) AS roas
+FROM ads_data
+GROUP BY country
+ORDER BY revenue DESC;
+
+## 7. CAMPAIGN TYPE
+SELECT 
+    campaign_type,
+    SUM(conversions) AS conversions,
+    ROUND(SUM(conversions)::numeric / SUM(clicks), 4) AS conversion_rate
+FROM ads_data
+GROUP BY campaign_type
+ORDER BY conversion_rate DESC;
+
+## 8. TREND BULANAN 📈
+SELECT 
+    TO_CHAR(date, 'Mon') AS month,
+    SUM(ad_spend) AS spend,
+    SUM(revenue) AS revenue
+FROM ads_data
+GROUP BY 
+    TO_CHAR(date, 'Mon'),
+    EXTRACT(MONTH FROM date)
+ORDER BY EXTRACT(MONTH FROM date);
+
+
+## TOP PERFORMANCE COMBINATION
+SELECT 
+    platform,
+    industry,
+    ROUND(
+        (SUM(revenue) / NULLIF(SUM(ad_spend), 0))::numeric
+    , 2) AS roas
+FROM ads_data
+GROUP BY platform, industry
+ORDER BY roas DESC
+LIMIT 5;
